@@ -1,0 +1,108 @@
+{
+    "users": [
+        {
+            "username": "user@aco.org",
+            "password": "password"
+        },
+        {
+            "username": "user@payer.org",
+            "password": "password"
+        }
+    ],
+
+    "dataSources" : [
+        {
+            "id"     : "bch_epic",
+            "label"  : "BCH Epic",
+            "enabled": 1
+        },
+        {
+            "id"     : "bch_cerner",
+            "label"  : "BCH Cerner",
+            "enabled": 1
+        },
+        {
+            "id"     : "aetna_claims",
+            "label"  : "Aetna Claims",
+            "enabled": 0
+        },
+        {
+            "id"     : "mass_health_claims",
+            "label"  : "MassHealth Claims",
+            "enabled": 1
+        },
+        {
+            "id"     : "bcbs_claims",
+            "label"  : "BCBS Claims",
+            "enabled": 0
+        }
+    ],
+
+    "measures": [
+        {
+            "id"  : "childhood_immunization_status",
+            "name": "Childhood Immunization Status"
+        },
+        {
+            "id"         : "immunization_for_adolescents",
+            "name"       : "Immunizations for Adolescents",
+            "description": "",
+            "numerator"  : "",
+            "denominator": "",
+            "query"      : "",
+            "results"    : []
+        },
+        {
+            "id"  : "depression_screening_follow_up",
+            "name": "Depression Screening and Follow-up Plan"
+        },
+        {
+            "id"  : "depression_remission",
+            "name": "Depression Remission or Response"
+        }
+    ],
+
+    "organizations": [
+        {
+            "id"         : "bch",
+            "name"       : "BCH",
+            "description": "Boston Children's Hospital",
+            "enabled"    : 1
+        },
+        {
+            "id"         : "po",
+            "name"       : "PO",
+            "description": "BCH Physicians Organization",
+            "enabled"    : 1
+        },
+        {
+            "id"         : "ppoc",
+            "name"       : "PPOC",
+            "description": "Pediatric Physicians Organization",
+            "enabled"    : 1
+        }
+    ],
+
+    "payers": [
+        {
+            "id"     : "aetna",
+            "label"  : "Aetna",
+            "enabled": 0
+        },
+        {
+            "id"     : "bcbs_ma",
+            "label"  : "BCBS MA",
+            "enabled": 0
+        },
+        {
+            "id"     : "hphc",
+            "label"  : "HPHC",
+            "enabled": 0
+        },
+        {
+            "id"     : "mass_health",
+            "label"  : "MassHealth",
+            "enabled": 1
+        }
+    ]
+}
