@@ -104,5 +104,12 @@
             "label"  : "MassHealth",
             "enabled": 1
         }
+    ],
+
+    "clinics": [
+        {
+            "id"  : "boston_clinic",
+            "name": "Boston Clinic"
+        }
     ]
 }

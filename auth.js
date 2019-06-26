@@ -7,13 +7,19 @@ const router     = exports.router = Router({ mergeParams: true });
 
 // The authentication middleware
 exports.authenticate = (req, res, next) => {
-    const { sid } = req.cookies;
-    if (sid) {
-        req.user = db.users.find(u => u.sid === sid);
-        next();
-    } else {
-        next();
-    }
+    return next();
+    // const { sid } = req.cookies;
+    // if (sid) {
+    //     const user = db.users.find(u => u.sid === sid);
+    //     if (user) {
+    //         req.user = user;
+    //         return next();
+    //     }
+    // }
+    // res.status(401).json({
+    //     code: 401,
+    //     statusText: "Unauthorized"
+    // });
 };
 
 // The login function
@@ -35,6 +41,11 @@ async function login({ username = "", password = "" }) {
     // Do NOT specify what is wrong in the error message!
     if (user.password !== password) {
         throw new Error("Invalid username or password");
+    }
+
+    // If already logged in (E.g. from another browser) use the same session
+    if (user.sid) {
+        return user;
     }
 
     // Generate SID and update the user in DB

@@ -9,7 +9,7 @@ const app = express();
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
-app.use(auth.authenticate);
+// app.use(auth.authenticate);
 app.use("/auth", auth.router);
 app.use("/api", api.router);
 

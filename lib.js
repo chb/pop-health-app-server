@@ -5,6 +5,14 @@ function resolveAfter(ms) {
     });
 }
 
+function makeArray(x) {
+    if (Array.isArray(x)) {
+        return x;
+    }
+    return [x];
+}
+
 module.exports = {
-    resolveAfter
+    resolveAfter,
+    makeArray
 };
