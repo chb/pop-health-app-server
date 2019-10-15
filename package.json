@@ -28,6 +28,7 @@
     "lento": "^0.3.2",
     "moment": "^2.24.0",
     "readable-stream": "^3.4.0",
+    "sqlite3": "^4.1.0",
     "stdout-stream": "^1.4.1",
     "through2": "^3.0.1"
   },
