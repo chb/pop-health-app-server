@@ -1,4 +1,5 @@
 const sqlite3 = require("sqlite3");
+const debug   = require("debug")("DB");
 
 const DB = new sqlite3.Database(`${__dirname}/../database.db`);
 
@@ -12,13 +13,13 @@ DB.promise = (...args) =>
     let [method, ...params] = args;
     return new Promise((resolve, reject) => {
         const logParams = [...params];
-        console.log("SQL: ", logParams.shift(), "\nparams: ", logParams);
+        debug("SQL: ", logParams.shift(), "\nparams: ", logParams);
         DB[method](...params, (error, result) => {
             if (error) {
-                console.error(error);
+                debug(error);
                 return reject(error);
             }
-            console.log(result);
+            debug(result);
             resolve(result);
         });
     });
