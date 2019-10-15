@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const bodyParser = require("body-parser");
 const Crypto     = require("crypto");
-const lib        = require("./lib");
+const lib        = require("../lib");
 const db         = require("./db");
 const router     = exports.router = Router({ mergeParams: true });
 
@@ -29,7 +29,7 @@ async function login({ username = "", password = "" }) {
     await lib.resolveAfter(500);
 
     // Look up the user in DB
-    const user = db.users.find(u => u.username === username);
+    const user = await db.promise("get", "SELECT * FROM users WHERE username = ?", username);
 
     // No such username
     // Do NOT specify what is wrong in the error message!

@@ -2,7 +2,7 @@ const express      = require("express");
 const cookieParser = require("cookie-parser");
 const cors         = require("cors");
 const config       = require("./config");
-const auth         = require("./auth");
+const auth         = require("./controllers/auth");
 const api          = require("./api");
 const sql          = require("./sql");
 

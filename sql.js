@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const lento      = require("lento");
 const bodyParser = require("body-parser");
-const auth       = require("./auth");
+const auth       = require("./controllers/auth");
 const csvWriter  = require("csv-write-stream");
 const pipeline   = require("readable-stream").pipeline;
 const through2   = require("through2");
