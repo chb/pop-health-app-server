@@ -111,14 +111,24 @@ class MeasureResult
 
         const results = await DB.promise(
             "all",
-            "SELECT mr.id, mr.org_id, mr.date, mr.measure_id, SUM(mr.numerator) AS numerator, SUM(mr.denominator) AS denominator " +
-            "FROM measure_results AS mr " +
-            "JOIN measures AS m ON m.id = mr.measure_id " +
-            "WHERE m.enabled = 1 " +
-            "AND mr.date >= ? AND mr.date <= ? " +
-            "AND mr.ds_id IN(" + dataSources.map(() => "?").join(", ") + ") " +
-            "GROUP BY mr.org_id, mr.measure_id, mr.date " +
-            "ORDER BY mr.date, mr.org_id",
+
+            `SELECT
+                mr.id,
+                mr.org_id,
+                mr.date,
+                mr.measure_id,
+                SUM(mr.numerator) AS numerator,
+                SUM(mr.denominator) AS denominator 
+            FROM
+                measure_results AS mr
+                JOIN measures AS m ON m.id = mr.measure_id
+            WHERE
+                m.enabled = 1
+                AND mr.date >= ? AND mr.date <= ?
+                AND mr.ds_id IN(" + dataSources.map(() => "?").join(", ") + ")
+            GROUP BY mr.org_id, mr.measure_id, mr.date 
+            ORDER BY mr.date, mr.org_id`,
+
             startDate.format("YYYY-MM-DD"),
             endDate.format("YYYY-MM-DD"),
             ...dataSources.map(row => row.id)
