@@ -1,30 +1,45 @@
 const { Router } = require("express");
-const lento      = require("lento");
+// const lento      = require("lento");
 const bodyParser = require("body-parser");
 const auth       = require("./controllers/auth");
 const csvWriter  = require("csv-write-stream");
 const pipeline   = require("readable-stream").pipeline;
 const through2   = require("through2");
+const pool       = require("./dbPool");
 
 const router = exports.router = Router({ mergeParams: true });
 
-const client = lento({
-    user    : "presto",
-    hostname: "34.74.56.14",
-    catalog : "hive",
-    schema  : "leap"
-});
+function createRowStream(sql)
+{
+    return pool.getConnection().then(connection => {
+        let stream = connection.connection.query(sql).stream();
+        stream.once("close", () => connection.release());
+        return stream;
+    });
+}
+
+// const client = lento({
+//     user    : "presto",
+//     hostname: "34.74.56.14",
+//     catalog : "hive",
+//     schema  : "leap"
+// });
 
 
-router.get("/csv", auth.authenticate, (req, res) => {
+router.get("/csv", auth.authenticate, async (req, res) => {
     let query = req.query.q || "";
     if (!query) {
         return res.status(400).json({ error: "A 'q' parameter is required" }).end();
     }
-
+    console.log(query);
+    // query = query.replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+    query = query.replace(/-/g, "+").replace(/_/g, "/");
+    console.log(query);
     query = Buffer.from(query, "base64").toString("utf8");
+    console.log(query);
 
-    let source = client.createRowStream(query);
+    // let source = client.createRowStream(query);
+    let source = await createRowStream(query);
 
     res.set({
         "Content-type"       : "text/plain",
@@ -41,13 +56,9 @@ router.get("/csv", auth.authenticate, (req, res) => {
     );
 });
 
-router.post("/", auth.authenticate, bodyParser.urlencoded({ extended: true }), (req, res) => {
+router.post("/", auth.authenticate, bodyParser.urlencoded({ extended: true }), async (req, res) => {
 
-    let source = client.createRowStream(req.body.query, {
-        // pageSize: 300,
-        // rowFormat: "array"
-    });
-
+    let source = await createRowStream(req.body.query);
     let header;
     let data = [];
     let len = 0;

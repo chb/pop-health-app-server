@@ -3,6 +3,7 @@ const lento    = require("lento");
 const through2 = require("through2");
 const moment   = require("moment");
 const lib      = require("../lib");
+const pool     = require("../dbPool");
 
 
 const client = lento({
@@ -13,6 +14,7 @@ const client = lento({
 });
 
 
+
 class MeasureResult
 {
     constructor(id)
@@ -20,8 +22,199 @@ class MeasureResult
         this.id = id;
     }
 
+    static async syncHypertension(year, orgId, dsId)
+    {
+        const bpCode = "55284-4";
+        const hypertensionCodes = [
+            "1201005", // Benign essential hypertension
+            "38341003" // Essential hypertension
+        ];
+        const startDate = `${year}-01-01`;
+        const endDate   = `${year}-12-31`;
+
+        // Select the minimum information that we can work with - patient ID,
+        // vaccine code and vaccine date
+        let sql = "SELECT ";
+
+        // Average systolic BP per patient per month
+        sql += "AVG(o.resource_json ->> '$.component[0].valueQuantity.value') AS systolic, ";
+
+        // Average diastolic BP per patient per month
+        sql += "AVG(o.resource_json ->> '$.component[1].valueQuantity.value') AS diastolic, ";
+
+        // The patient ID of each group
+        sql += "SUBSTRING_INDEX(o.resource_json ->> '$.subject.reference', '/', -1) AS patient, ";
+
+        // The month of each group
+        sql += "MONTH(o.resource_json ->> '$.effectiveDateTime') AS `month` ";
+
+        // Select from observations
+        sql += "FROM Observation o WHERE ";
+
+        // Only use BP observations
+        sql += `o.resource_json ->> '$.code.coding[0].code' = '${bpCode}' `;
+
+        // The observation must be taken after (or at) the beginning of the year
+        sql += `AND DATEDIFF(o.resource_json ->> '$.effectiveDateTime', '${startDate}') >= 0 `;
+
+        // The observation must be taken before (or at) the end of the year
+        sql += `AND DATEDIFF(o.resource_json ->> '$.effectiveDateTime', '${endDate}') <= 365 `;
+
+        // The observation must be for patients between 18 and 64 with HTN
+        sql += "AND SUBSTRING_INDEX(o.resource_json ->> '$.subject.reference', '/', -1) IN (" +
+               "SELECT p.resource_id FROM Patient AS p JOIN `Condition` AS c ON (" +
+               "c.resource_json ->> '$.subject.reference' = CONCAT('Patient/', p.resource_id)) " +
+               `WHERE c.resource_json ->> '$.code.coding[0].code' IN ('${hypertensionCodes.join("', '")}') ` +
+               `AND DATE_ADD(p.resource_json ->> '$.birthDate', INTERVAL 18 YEAR) <= DATE('${startDate}')` +
+               `AND DATE_ADD(p.resource_json ->> '$.birthDate', INTERVAL 64 YEAR) >= DATE('${endDate}')) `;
+
+        // Group by patient and month to compute the averages
+        sql += "GROUP BY patient, `month`";
+
+        console.log(sql);
+
+        const [rows] = await pool.query(sql);
+
+        let DENOMINATOR = rows.length;
+
+        // For each month, count how many patients have average BP below the thresholds?
+        // We start by assuming that all patients are OK, and then subtract those
+        // for whom we have high BP data.
+        let months = [
+            DENOMINATOR, DENOMINATOR, DENOMINATOR, DENOMINATOR,
+            DENOMINATOR, DENOMINATOR, DENOMINATOR, DENOMINATOR,
+            DENOMINATOR, DENOMINATOR, DENOMINATOR, DENOMINATOR
+        ];
+
+        rows.forEach(row => {
+
+            // Increment this for every patient
+            DENOMINATOR += 1;
+
+            // Increment the month value for each patient who does NOT have
+            // average hypertension during that month
+            if (row.systolic > 140 || row.diastolic > 90) {
+                months[row.month - 1] -= 1;
+            }
+        });
+
+        console.log(months);
+
+        const tasks = months.map((numerator, index) => DB.promise(
+            "run",
+            "INSERT OR REPLACE INTO measure_results_2 (" +
+                "measure_id, date, numerator, denominator, org_id, ds_id" +
+            ") VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                "controlling_high_blood_pressure",
+                `${year}-${index + 1 < 10 ? "0" + (index + 1) : index + 1 }-01`,
+                numerator,
+                DENOMINATOR,
+                orgId,
+                dsId
+            ]
+        ));
+
+        await Promise.all(tasks);
+    }
+
+    static async syncImmunizationsForAdolescents(year, orgId, dsId)
+    {
+        const vaccineCodes = [
+            "62",  // HPV, quadrivalent
+            "114", // meningococcal MCV4P
+            "115"  // Tdap
+        ];
+        const startDate = `${year}-01-01`;
+        const endDate   = `${year}-12-31`;
+
+        // Select the minimum information that we can work with - patient ID,
+        // vaccine code and vaccine date
+        let sql = `SELECT
+            p.resource_json ->> '$.id'         AS \`id\`,
+            i.code                             AS \`vaccineCode\`,
+            date(i.resource_json ->> '$.date') AS \`vaccineDate\`
+        FROM Patient AS p
+        LEFT JOIN Immunization i ON (
+            i.resource_json ->> '$.patient.reference' = CONCAT('Patient/', p.resource_id)`;
+
+        // Only take immunizations made before the end of the year
+        sql += ` AND DATE(i.resource_json ->> '$.date') <= DATE("${endDate}")`;
+
+        // Only take HPV, MCV4P and Tdap immunizations
+        sql += ` AND i.code IN('${vaccineCodes.join("', '")}')`;
+
+        // Only take patients who would turn 13 years within the selected year
+        sql += ` )
+        WHERE
+            DATE_ADD(p.resource_json ->> '$.birthDate', INTERVAL 13 YEAR) > Date("${startDate}") AND
+            DATE_ADD(p.resource_json ->> '$.birthDate', INTERVAL 13 YEAR) < Date("${endDate}")`;
+
+        sql += " ORDER BY DATE(i.resource_json ->> '$.date')";
+
+        console.log(sql);
+
+        const [rows] = await pool.query(sql);
+
+        let patients     = {};
+        let DENOMINATOR  = 0;
+        let NUMERATORS   = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+        rows.forEach(row => {
+            let pt = patients[row.id];
+            if (!pt) {
+                pt = patients[row.id] = {
+                    "62" : 0, // HPV, quadrivalent
+                    "114": 0, // meningococcal MCV4P
+                    "115": 0  // Tdap
+                };
+                DENOMINATOR += 1;
+            }
+
+            // Don't care for repeated immunizations
+            if (pt.completed) return;
+
+            if (row.vaccineCode) {
+                pt[row.vaccineCode] = 1;
+                if (pt["62"] && pt["114"] && pt["115"]) {
+                    let month = moment(row.vaccineDate).month();
+                    NUMERATORS[month] += 1;
+                    pt.completed = 1;
+                }
+            }
+        });
+
+        let total = 0;
+        NUMERATORS = NUMERATORS.map(cur => {
+            total += cur;
+            return total;
+        });
+        console.log(DENOMINATOR, NUMERATORS);
+
+        const tasks = NUMERATORS.map((numerator, index) => DB.promise(
+            "run",
+            "INSERT OR REPLACE INTO measure_results_2 (" +
+                "measure_id, date, numerator, denominator, org_id, ds_id" +
+            ") VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                "immunization_for_adolescents",
+                `${year}-${index + 1 < 10 ? "0" + (index + 1) : index + 1 }-01`,
+                numerator,
+                DENOMINATOR,
+                orgId,
+                dsId
+            ]
+        ));
+
+        await Promise.all(tasks);
+    }
+
     static async getAll({ startDate, endDate, org, measure, ds })
     {
+
+        startDate = "2016-01-01";
+        endDate   = "2017-12-31";
+
         // ---------------------------------------------------------------------
         // Start Date
         // If none is specified, default to the start of the previous year.
@@ -44,6 +237,16 @@ class MeasureResult
             endDate = moment().subtract(1, "month");
         }
         endDate = endDate.endOf("month");
+
+
+        // ---------------------------------------------------------------------
+        // Synchronize.
+        // Note that we don't wait for this to complete - it runs in the background!
+        // ---------------------------------------------------------------------
+        // MeasureResult.syncImmunizationsForAdolescents(startDate.year(), "bch", "bch_cerner");
+        // MeasureResult.syncImmunizationsForAdolescents(endDate.year(), "bch", "bch_cerner");
+        // MeasureResult.syncHypertension(startDate.year(), "bch", "bch_cerner");
+        // MeasureResult.syncHypertension(endDate.year(), "bch", "bch_cerner");
 
 
         // ---------------------------------------------------------------------
@@ -120,18 +323,17 @@ class MeasureResult
                 SUM(mr.numerator) AS numerator,
                 SUM(mr.denominator) AS denominator 
             FROM
-                measure_results AS mr
+                measure_results_2 AS mr
                 JOIN measures AS m ON m.id = mr.measure_id
             WHERE
                 m.enabled = 1
                 AND mr.date >= ? AND mr.date <= ?
-                AND mr.ds_id IN(" + dataSources.map(() => "?").join(", ") + ")
+                
             GROUP BY mr.org_id, mr.measure_id, mr.date 
             ORDER BY mr.date, mr.org_id`,
 
             startDate.format("YYYY-MM-DD"),
-            endDate.format("YYYY-MM-DD"),
-            ...dataSources.map(row => row.id)
+            endDate.format("YYYY-MM-DD")
         );
 
         organizations.forEach(org => {
@@ -190,7 +392,7 @@ class MeasureResult
         return DB.promise(
             "get",
             "SELECT " +
-                "mr.clinic_id        AS clinicID, " +
+                // "mr.clinic_id        AS clinicID, " +
                 "mr.date             AS measureDate, " +
                 "m.name              AS measureName, " +
                 "SUM(mr.numerator)   AS numeratorValue, " +
@@ -201,7 +403,7 @@ class MeasureResult
                 "org.name            AS orgName, " +
                 // "mr.numerator/mr.denominator * 100       AS value, " +
                 "m.cohort_sql " +
-            "FROM measure_results AS mr " +
+            "FROM measure_results_2 AS mr " +
             "JOIN measures AS m ON mr.measure_id = m.id " +
             "JOIN organizations AS org ON mr.org_id = org.id " +
             // "JOIN clinic AS cl ON mr.clinic_id = cl.id " +

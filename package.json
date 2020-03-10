@@ -27,6 +27,7 @@
     "express": "^4.17.1",
     "lento": "^0.3.2",
     "moment": "^2.24.0",
+    "mysql2": "^2.1.0",
     "readable-stream": "^3.4.0",
     "sqlite3": "^4.1.0",
     "stdout-stream": "^1.4.1",
