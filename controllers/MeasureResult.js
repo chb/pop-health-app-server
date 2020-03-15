@@ -5,6 +5,16 @@ const moment   = require("moment");
 const lib      = require("../lib");
 const pool     = require("../dbPool");
 
+// The data that we use does have some tags already. We could use FHIR tags to
+// mark the data depending on where it came from. For the purpose of this app
+// we just re-use the tags that ere already there.
+const TAG_MAP = {
+    BCH       : "smart-7-2017",
+    PO        : "synthea-7-2017",
+    PPOC      : "pro-7-2017",
+    BCH_EPIC  : "bch-360",
+    BCH_CERNER: "",
+};
 
 const client = lento({
     user    : "presto",
