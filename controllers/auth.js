@@ -8,18 +8,18 @@ const router     = exports.router = Router({ mergeParams: true });
 // The authentication middleware
 exports.authenticate = (req, res, next) => {
     return next();
-    // const { sid } = req.cookies;
-    // if (sid) {
-    //     const user = db.users.find(u => u.sid === sid);
-    //     if (user) {
-    //         req.user = user;
-    //         return next();
-    //     }
-    // }
-    // res.status(401).json({
-    //     code: 401,
-    //     statusText: "Unauthorized"
-    // });
+    const { sid } = req.cookies;
+    if (sid) {
+        const user = db.users.find(u => u.sid === sid);
+        if (user) {
+            req.user = user;
+            return next();
+        }
+    }
+    res.status(401).json({
+        code: 401,
+        statusText: "Unauthorized"
+    });
 };
 
 // The login function
