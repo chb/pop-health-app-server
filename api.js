@@ -10,7 +10,7 @@ const router        = exports.router = Router({ mergeParams: true });
  * This will be called by the front-end to build it's UI structure. Should reply
  * with all the data that the UI needs for initializing itself.
  */
-router.get("/ui", auth.authenticate, async (req, res) => {
+router.get("/ui", /*auth.authenticate, */async (req, res) => {
     const [
         dataSources,
         measures,

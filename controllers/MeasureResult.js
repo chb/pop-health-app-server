@@ -1,8 +1,6 @@
-const through2 = require("through2");
 const moment   = require("moment");
 const DB       = require("./db");
 const lib      = require("../lib");
-const pool     = require("../dbPool");
 const {
     syncAllHypertensions,
     syncAllImmunizationsForAdolescents
