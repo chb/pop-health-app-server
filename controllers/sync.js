@@ -2,17 +2,11 @@ const moment   = require("moment");
 const DB       = require("./db");
 const pool     = require("../dbPool");
 
-// The data that we use does have some tags already. We could use FHIR tags to
-// mark the data depending on where it came from. For the purpose of this app
-// we just re-use the tags that ere already there.
-// resource_json ->> '$.meta.tag[0].code' = 'bch-360'
-const TAG_MAP = {
-    bch       : "smart-7-2017",
-    po        : "synthea-7-2017",
-    ppoc      : "bch-360", // "pro-7-2017",
-    bch_epic  : "bch-360",
-    bch_cerner: "",
-};
+// The data that we use does not come from data sets that match the data sets
+// used in out PopHealth app. To simulate those, we run the queries as usual, 
+// but introduce some randomness by excluding some portion of the results. This
+// way we end up with somewhat different results for each dataset.
+const RANDOMNESS = 0.2;
 
 // LOINC Codes used for various types of hypertension
 const hypertensionCodes = [
@@ -35,19 +29,12 @@ const bpCode = "55284-4";
  * called once for each year, organization and dataset
  * @param {number|string} year 4 digit year 
  * @param {string} orgId Organization ID: "bch" | "po" | "ppoc"
- * @param {*} dsId Dataset ID: "bch_cerner" | "bch_epic"
+ * @param {string} dsId Dataset ID: "bch_cerner" | "bch_epic"
  */
 async function syncHypertension(year, orgId, dsId)
 {
     const startDate = `${year}-01-01`;
     const endDate   = `${year}-12-31`;
-
-    // const tag = orgId in TAG_MAP ?
-    //     TAG_MAP[orgId] :
-    //     dsId in TAG_MAP ?
-    //         TAG_MAP[dsId] :
-    //         null;
-    // const tag = TAG_MAP[dsId] || null;
 
     // Select the minimum information that we can work with
     let sql = "SELECT ";
@@ -70,15 +57,8 @@ async function syncHypertension(year, orgId, dsId)
     // Only use BP observations
     sql += `o.resource_json ->> '$.code.coding[0].code' = '${bpCode}' `;
 
-    sql += `AND JSON_CONTAINS(
-        o.resource_json ->> '$.meta.tag',
-        '{"system":"https://smarthealthit.org/tags","code":"${TAG_MAP[orgId]}"}'
-    ) `;
-
-    // Use tags to mark data as belonging to different data sets
-    // if (dsId === "bch_epic") {
-        sql += `AND RAND() > 0.5 `;
-    // }
+    // Randomize to simulate different data for the given dataset
+    sql += `AND RAND() > ${RANDOMNESS} `;
 
     // The observation must be taken after (or at) the beginning of the year
     sql += `AND DATEDIFF(o.resource_json ->> '$.effectiveDateTime', '${startDate}') >= 0 `;
@@ -91,7 +71,7 @@ async function syncHypertension(year, orgId, dsId)
             "SELECT p.resource_id FROM Patient AS p JOIN `Condition` AS c ON (" +
             "c.resource_json ->> '$.subject.reference' = CONCAT('Patient/', p.resource_id)) " +
             `WHERE c.resource_json ->> '$.code.coding[0].code' IN ('${hypertensionCodes.join("', '")}') ` +
-            `AND DATE_ADD(p.resource_json ->> '$.birthDate', INTERVAL 18 YEAR) <= DATE('${startDate}')` +
+            `AND DATE_ADD(p.resource_json ->> '$.birthDate', INTERVAL 18 YEAR) <= DATE('${startDate}') ` +
             `AND DATE_ADD(p.resource_json ->> '$.birthDate', INTERVAL 64 YEAR) >= DATE('${endDate}')) `;
 
     // Group by patient and month to compute the averages
@@ -178,19 +158,8 @@ async function syncImmunizationsForAdolescents(year, orgId, dsId)
         DATE_ADD(p.resource_json ->> '$.birthDate', INTERVAL 13 YEAR) > Date("${startDate}") AND
         DATE_ADD(p.resource_json ->> '$.birthDate', INTERVAL 13 YEAR) < Date("${endDate}")`;
 
-    // Use tags to mark data as belonging to different data sets
-    if (dsId === "bch_epic") {
-        sql += ` AND JSON_CONTAINS(
-            i.resource_json ->> '$.meta.tag',
-            '{"system":"https://smarthealthit.org/tags","code":"bch-360"}'
-        ) `;
-    }
-//     else {
-//         sql += ` AND JSON_CONTAINS(
-//             i.resource_json ->> '$.meta.tag',
-//             '{"system":"https://smarthealthit.org/tags","code":"bch-360"}'
-//         ) = 0`;
-//     }
+    // Randomize to simulate different data for the given dataset
+    sql += ` AND RAND() > ${RANDOMNESS} `;
 
     sql += " ORDER BY DATE(i.resource_json ->> '$.date')";
 

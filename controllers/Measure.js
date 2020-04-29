@@ -20,11 +20,11 @@ class Measure
      */
     static async getMonthReport({ measureId, date = "" })
     {
-        date = moment(date + "");
-        if (!date.isValid()) {
-            date = moment();
+        let _date = moment(date + "");
+        if (!_date.isValid()) {
+            _date = moment();
         }
-        date = date.startOf("month");
+        _date = _date.startOf("month");
 
         const row = await DB.promise(
             "get",
@@ -46,8 +46,8 @@ class Measure
             // "JOIN clinic AS cl ON mr.clinic_id = cl.id " +
             "WHERE m.id=? AND mr.date >= ? AND mr.date < ?",
             measureId,
-            date.format("YYYY-MM-DD"),
-            moment(date).endOf("month").format("YYYY-MM-DD")
+            _date.format("YYYY-MM-DD"),
+            moment(_date).endOf("month").format("YYYY-MM-DD")
         );
 
         return row;
@@ -55,6 +55,13 @@ class Measure
 
     async fetchCohort() {}
 
+    /**
+     * @param {object} [options]
+     * @param {string} [options.org] Organization ID
+     * @param {string} [options.startDate] Start date
+     * @param {string} [options.measureId] Measure ID
+     * @param {string} [options.endDate] End date
+     */
     async queryResults({ org, startDate, measureId, endDate } = {}) {
 
         let sql = "SELECT * FROM measure_results";
@@ -84,20 +91,20 @@ class Measure
         }
 
         // Start Date ----------------------------------------------------------
-        startDate = moment(startDate + "");
-        if (!startDate.isValid()) {
-            startDate = moment().subtract(1, "year").startOf("year");
+        let _startDate = moment(startDate + "");
+        if (!_startDate.isValid()) {
+            _startDate = moment().subtract(1, "year").startOf("year");
         }
         where.push("date >= ?");
-        params.push(startDate.startOf("month").format("YYYY-MM-DD"));
+        params.push(_startDate.startOf("month").format("YYYY-MM-DD"));
 
         // End Date ------------------------------------------------------------
-        endDate = moment(endDate + "");
-        if (!endDate.isValid()) {
-            endDate = moment().subtract(1, "month").endOf("month");
+        let _endDate = moment(endDate + "");
+        if (!_endDate.isValid()) {
+            _endDate = moment().subtract(1, "month").endOf("month");
         }
         where.push("date <= ?");
-        params.push(endDate.endOf("month").format("YYYY-MM-DD"));
+        params.push(_endDate.endOf("month").format("YYYY-MM-DD"));
 
         // Finish the query ----------------------------------------------------
         sql += ` WHERE ${ where.join(" AND ") }`;
@@ -106,8 +113,8 @@ class Measure
         const organizations = await DB.promise("all", "SELECT * FROM organizations");
         const measures = await DB.promise("all", "SELECT * FROM measures");
         const out = {
-            startDate,
-            endDate,
+            startDate: _startDate,
+            endDate  : _endDate,
             organizations: {}
         };
 
@@ -133,6 +140,12 @@ class Measure
         return out;
     }
 
+    /**
+     * @param {object} [options]
+     * @param {string} [options.orgId] Organization ID
+     * @param {string} [options.startDate] Start date
+     * @param {string} [options.measureId] Measure ID
+     */
     async generateRandomResults({ orgId, measureId, startDate } = {}) {
 
         const denominators = {};
@@ -151,7 +164,7 @@ class Measure
             async function insert() {
                 let idx = date.month();
                 if (idx === 0) prev = 0;
-                let pct = randomPercent(prev);
+                let pct = +randomPercent(prev);
                 await DB.promise(
                     "run",
                     "INSERT INTO measure_results (" +
@@ -164,7 +177,7 @@ class Measure
                     denominator,
                     dsId
                 );
-                prev = pct;
+                prev = +pct;
                 date.add(1, "months");
 
                 if (date.isBefore(now)) {
@@ -176,27 +189,21 @@ class Measure
         }
 
         // startDate -----------------------------------------------------------
-        startDate = moment(startDate + "");
-        if (!startDate.isValid()) {
-            startDate = moment().subtract(1, "year").startOf("year");
+        let _startDate = moment(startDate + "");
+        if (!_startDate.isValid()) {
+            _startDate = moment().subtract(1, "year").startOf("year");
         }
 
         // orgId(s) ------------------------------------------------------------
         if (!orgId) {
-            orgId = await DB.promise("all", "SELECT id FROM organizations");
-            orgId = orgId.map(row => row.id);
-        }
-        if (!Array.isArray(orgId)) {
-            orgId = [ orgId ];
+            let rows = await DB.promise("all", "SELECT id FROM organizations");
+            orgId = rows.map(row => row.id);
         }
 
         // measureId(s) --------------------------------------------------------
         if (!measureId) {
-            measureId = await DB.promise("all", "SELECT id FROM measures WHERE enabled = 1");
-            measureId = measureId.map(row => row.id);
-        }
-        if (!Array.isArray(measureId)) {
-            measureId = [ measureId ];
+            let rows = await DB.promise("all", "SELECT id FROM measures WHERE enabled = 1");
+            measureId = rows.map(row => row.id);
         }
 
         // DataSources ---------------------------------------------------------
@@ -204,10 +211,13 @@ class Measure
         const dsId = ds.map(row => row.id);
 
         // Generate data -------------------------------------------------------
-        for (let _orgId of orgId) {
-            for (let _measureId of measureId) {
+        const orgIds     = Array.isArray(orgId    ) ? orgId     : [orgId    ];
+        const measureIds = Array.isArray(measureId) ? measureId : [measureId];
+
+        for (let _orgId of orgIds) {
+            for (let _measureId of measureIds) {
                 for (let _dsId of dsId) {
-                    await generate(_orgId, _measureId, startDate, _dsId);
+                    await generate(_orgId, _measureId, _startDate, _dsId);
                 }
             }
         }

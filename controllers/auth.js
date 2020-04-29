@@ -7,7 +7,7 @@ const router     = exports.router = Router({ mergeParams: true });
 
 // The authentication middleware
 exports.authenticate = (req, res, next) => {
-    return next();
+    // return next();
     const { sid } = req.cookies;
     if (sid) {
         const user = db.users.find(u => u.sid === sid);
@@ -80,7 +80,9 @@ router.get("/logout", async (req, res) => {
     // Introduce artificial delay to protect against automated brute-force attacks
     await lib.resolveAfter(500);
 
+    // @ts-ignore
     if (req.user) {
+        // @ts-ignore
         req.user.sid = null;
     }
 

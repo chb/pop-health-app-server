@@ -109,7 +109,6 @@ class MeasureResult
         const out = {
             startDate,
             endDate,
-            // results,
             organizations: {},
             measures
         };
@@ -141,22 +140,13 @@ class MeasureResult
             const _org = {
                 name: org.name,
                 description: org.description,
-                // dataSources,
                 measures: []
             };
 
             measures.forEach(measure => {
                 const data = {};
 
-                // // For each month in the selected range
-                // let prev = 0;
-                // forEachMonth(startDate, endDate, date => {
-                //     let idx = date.month();
-                //     if (idx === 0) prev = 0;
-                //     let pct = randomPercent(prev);
-                //     data[date.format("YYYY-MM")] = pct;
-                //     prev = pct;
-                // });
+                // For each month in the selected range
                 results.forEach(rec => {
                     if (rec.org_id === org.id && rec.measure_id === measure.id) {
                         const key = rec.date.replace(/-\d\d$/, "");
@@ -172,8 +162,7 @@ class MeasureResult
                 _org.measures.push({
                     id  : measure.id,
                     name: measure.name,
-                    data,
-                    // results
+                    data
                 });
             });
 

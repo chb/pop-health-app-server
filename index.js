@@ -9,12 +9,13 @@ const sql          = require("./sql");
 const app = express();
 
 app.use(cors({ origin: true, credentials: true }));
+// @ts-ignore
 app.use(cookieParser());
-// app.use(auth.authenticate);
+app.use(auth.authenticate);
 app.use("/auth", auth.router);
 app.use("/api" , api.router);
 app.use("/sql" , sql.router);
 
-app.listen(config.port, config.host, () => {
+app.listen(+config.port, config.host, () => {
     console.log(`Server listening at ${config.host}:${config.port}`);
 });
