@@ -10,7 +10,7 @@ const router        = exports.router = Router({ mergeParams: true });
  * This will be called by the front-end to build it's UI structure. Should reply
  * with all the data that the UI needs for initializing itself.
  */
-router.get("/ui", auth.authenticate, async (req, res) => {
+router.get("/ui", /*auth.authenticate, */async (req, res) => {
     const [
         dataSources,
         measures,
@@ -37,30 +37,12 @@ router.get("/test/queryResults", auth.authenticate, async (req, res) => {
     res.json(result);
 });
 
-// router.get("/measure/getMonthReport", async (req, res) => {
-//     const result = await Measure.getMonthReport(req.query);
-//     res.json(result);
-// });
-
-
 router.get("/measure/result", async (req, res) => {
     const report = await MeasureResult.getAll(req.query);
     res.json(report);
 });
 
-// router.get("/measure/result/:id/report", async (req, res) => {
-//     const result = new MeasureResult(+req.params.id);
-//     const report = await result.getReport();
-//     res.json(report || {});
-// });
-
 router.get("/measure/result/report", async (req, res) => {
     const report = await MeasureResult.getReport(req.query);
     res.json(report || {});
 });
-
-// router.get("/measure/result/:id/cohort", async (req, res) => {
-//     const result = new MeasureResult(+req.params.id);
-//     const report = await result.getCohort(res);
-//     res.json(report);
-// });

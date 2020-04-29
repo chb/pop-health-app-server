@@ -5,16 +5,14 @@ const DB = new sqlite3.Database(`${__dirname}/../database.db`);
 
 /**
  * Calls database methods and returns a promise
- * @param {String} method
+ * @param {string} method
  * @param {*[]} args
  */
-DB.promise = (...args) =>
+DB.promise = (method, ...args) =>
 {
-    let [method, ...params] = args;
     return new Promise((resolve, reject) => {
-        const logParams = [...params];
-        debug("SQL: ", logParams.shift(), "\nparams: ", logParams);
-        DB[method](...params, (error, result) => {
+        debug("SQL: ", method, "\nparams: ", args);
+        DB[method](...args, (error, result) => {
             if (error) {
                 debug(error);
                 return reject(error);

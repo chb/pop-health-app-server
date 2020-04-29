@@ -6,20 +6,20 @@ const db         = require("./db");
 const router     = exports.router = Router({ mergeParams: true });
 
 // The authentication middleware
-exports.authenticate = (req, res, next) => {
-    return next();
-    // const { sid } = req.cookies;
-    // if (sid) {
-    //     const user = db.users.find(u => u.sid === sid);
-    //     if (user) {
-    //         req.user = user;
-    //         return next();
-    //     }
-    // }
-    // res.status(401).json({
-    //     code: 401,
-    //     statusText: "Unauthorized"
-    // });
+exports.authenticate = async (req, res, next) => {
+    // return next();
+    const { sid } = req.cookies;
+    if (sid) {
+        const user = await db.promise("get", "SELECT * FROM users WHERE sid = ?", sid);
+        if (user) {
+            req.user = user;
+            return next();
+        }
+    }
+    res.status(401).json({
+        code: 401,
+        statusText: "Unauthorized"
+    });
 };
 
 // The login function
@@ -50,10 +50,12 @@ async function login({ username = "", password = "" }) {
 
     // Generate SID and update the user in DB
     const sid = Crypto.randomBytes(32).toString("hex");
+    const lastLogin = new Date();
 
     // Update user's lastLogin and sid properties
+    await db.promise("run", "UPDATE users SET sid=?, lastLogin=datetime('now') WHERE id=?", sid, user.id);
     user.sid = sid;
-    user.lastLogin = new Date();
+    user.lastLogin = lastLogin;
 
     // return the logged-in user
     return user;
@@ -80,8 +82,17 @@ router.get("/logout", async (req, res) => {
     // Introduce artificial delay to protect against automated brute-force attacks
     await lib.resolveAfter(500);
 
-    if (req.user) {
-        req.user.sid = null;
+    const { sid } = req.cookies;
+
+    if (sid) {
+        try {
+            await db.promise("run", "UPDATE users SET sid = NULL WHERE sid = ?", sid);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            // @ts-ignore
+            if (req.user) req.user.sid = null;
+        }
     }
 
     res.clearCookie("sid").json({ success: true });

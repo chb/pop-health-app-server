@@ -1,16 +1,10 @@
-const DB       = require("./db");
-const lento    = require("lento");
-const through2 = require("through2");
 const moment   = require("moment");
+const DB       = require("./db");
 const lib      = require("../lib");
-
-
-const client = lento({
-    user    : "presto",
-    hostname: "34.74.56.14",
-    catalog : "hive",
-    schema  : "leap"
-});
+const {
+    syncAllHypertensions,
+    syncAllImmunizationsForAdolescents
+} = require("./sync");
 
 
 class MeasureResult
@@ -20,7 +14,7 @@ class MeasureResult
         this.id = id;
     }
 
-    static async getAll({ startDate, endDate, org, measure, ds })
+    static async getAll({ startDate, endDate, org, measure, ds, sync })
     {
         // ---------------------------------------------------------------------
         // Start Date
@@ -45,6 +39,15 @@ class MeasureResult
         }
         endDate = endDate.endOf("month");
 
+
+        // ---------------------------------------------------------------------
+        // Synchronize if requested. Note that we don't wait for this to
+        // complete - it runs in the background!
+        // ---------------------------------------------------------------------
+        if (sync) {
+            syncAllHypertensions(startDate, endDate);
+            syncAllImmunizationsForAdolescents(startDate, endDate);
+        }
 
         // ---------------------------------------------------------------------
         // Organizations
@@ -104,46 +107,44 @@ class MeasureResult
         const out = {
             startDate,
             endDate,
-            // results,
             organizations: {},
             measures
         };
 
         const results = await DB.promise(
             "all",
-            "SELECT mr.id, mr.org_id, mr.date, mr.measure_id, SUM(mr.numerator) AS numerator, SUM(mr.denominator) AS denominator " +
-            "FROM measure_results AS mr " +
-            "JOIN measures AS m ON m.id = mr.measure_id " +
-            "WHERE m.enabled = 1 " +
-            "AND mr.date >= ? AND mr.date <= ? " +
-            "AND mr.ds_id IN(" + dataSources.map(() => "?").join(", ") + ") " +
-            "GROUP BY mr.org_id, mr.measure_id, mr.date " +
-            "ORDER BY mr.date, mr.org_id",
+
+            `SELECT
+                mr.id,
+                mr.org_id,
+                mr.date,
+                mr.measure_id,
+                SUM(mr.numerator) AS numerator,
+                SUM(mr.denominator) AS denominator 
+            FROM
+                measure_results_2 AS mr
+                JOIN measures AS m ON m.id = mr.measure_id
+            WHERE
+                m.enabled = 1
+                AND mr.date >= ? AND mr.date <= ?
+            GROUP BY mr.org_id, mr.measure_id, mr.date 
+            ORDER BY mr.date, mr.org_id`,
+
             startDate.format("YYYY-MM-DD"),
-            endDate.format("YYYY-MM-DD"),
-            ...dataSources.map(row => row.id)
+            endDate.format("YYYY-MM-DD")
         );
 
         organizations.forEach(org => {
             const _org = {
                 name: org.name,
                 description: org.description,
-                // dataSources,
                 measures: []
             };
 
             measures.forEach(measure => {
                 const data = {};
 
-                // // For each month in the selected range
-                // let prev = 0;
-                // forEachMonth(startDate, endDate, date => {
-                //     let idx = date.month();
-                //     if (idx === 0) prev = 0;
-                //     let pct = randomPercent(prev);
-                //     data[date.format("YYYY-MM")] = pct;
-                //     prev = pct;
-                // });
+                // For each month in the selected range
                 results.forEach(rec => {
                     if (rec.org_id === org.id && rec.measure_id === measure.id) {
                         const key = rec.date.replace(/-\d\d$/, "");
@@ -159,8 +160,7 @@ class MeasureResult
                 _org.measures.push({
                     id  : measure.id,
                     name: measure.name,
-                    data,
-                    // results
+                    data
                 });
             });
 
@@ -180,7 +180,7 @@ class MeasureResult
         return DB.promise(
             "get",
             "SELECT " +
-                "mr.clinic_id        AS clinicID, " +
+                // "mr.clinic_id        AS clinicID, " +
                 "mr.date             AS measureDate, " +
                 "m.name              AS measureName, " +
                 "SUM(mr.numerator)   AS numeratorValue, " +
@@ -191,7 +191,7 @@ class MeasureResult
                 "org.name            AS orgName, " +
                 // "mr.numerator/mr.denominator * 100       AS value, " +
                 "m.cohort_sql " +
-            "FROM measure_results AS mr " +
+            "FROM measure_results_2 AS mr " +
             "JOIN measures AS m ON mr.measure_id = m.id " +
             "JOIN organizations AS org ON mr.org_id = org.id " +
             // "JOIN clinic AS cl ON mr.clinic_id = cl.id " +
@@ -208,59 +208,6 @@ class MeasureResult
             org,
             ...ds
         );
-    }
-
-    /**
-     * Finds the SQL query associated with this measure. Then executes the query
-     * and pipes the result stream to the given response stream.
-     * The front-end uses this to render the report grid.
-     * @param {Express.Response} res The HTTP response to pipe the result to
-     */
-    async getCohort(res) {
-        const sql = (await DB.promise(
-            "get",
-            "SELECT m.cohort_sql AS sql " +
-            "FROM measure_results AS mr " +
-            "JOIN measures AS m ON mr.measure_id = m.id " +
-            "WHERE mr.id=?",
-            this.id
-        )).sql;
-
-        let source = client.createRowStream(sql, {});
-
-        let header;
-        let data = [];
-        let len = 0;
-        const maxRows = 1000;
-
-        source.pipe(through2.obj(function(row, enc, next) {
-            if (len < maxRows) {
-                if (!header) {
-                    header = Object.keys(row);
-                }
-                len = data.push(Object.values(row));
-            }
-            if (len >= maxRows) {
-                source.destroy();
-            }
-            next();
-        }));
-
-        source.on("close", () => {
-            if (!res.headersSent) {
-                res.json({ header, data });
-            }
-        });
-
-        source.on("end", () => {
-            if (!res.headersSent) {
-                res.json({ header, data });
-            }
-        });
-
-        source.on("error", e => {
-            res.status(400).json({ error: e.message }).end();
-        });
     }
 }
 
