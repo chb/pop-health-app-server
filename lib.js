@@ -1,10 +1,20 @@
 
+/**
+ * Waits a while by returning a promise that resolves after the given number of
+ * milliseconds
+ * @param {number} ms 
+ */
 function resolveAfter(ms) {
     return new Promise(resolve => {
         setTimeout(resolve, ms);
     });
 }
 
+/**
+ * If the argument is an array - return it. Otherwise put it in an array
+ * and return that.
+ * @param {*} x 
+ */
 function makeArray(x) {
     if (Array.isArray(x)) {
         return x;

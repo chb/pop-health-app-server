@@ -39,6 +39,8 @@ async function login({ username = "", password = "" }) {
 
     // Wrong password
     // Do NOT specify what is wrong in the error message!
+    // This is a demo app so the passwords are not encrypted. In real apps that
+    // is NOT acceptable.
     if (user.password !== password) {
         throw new Error("Invalid username or password");
     }

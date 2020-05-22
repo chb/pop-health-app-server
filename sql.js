@@ -16,6 +16,14 @@ function createRowStream(sql) {
     });
 }
 
+/**
+ * Execute SQL queries from the client and download the results as CSV file.
+ * Notes:
+ * - This is using GET to support HTML links
+ * - The SQL query should be base64 encoded and URL escaped
+ * - There is no size limit. The results will be streamed into a CSV file that
+ *   the browser downloads.
+ */
 router.get("/csv", auth.authenticate, async (req, res) => {
     let query = req.query.q || "";
     if (!query) {
@@ -39,6 +47,12 @@ router.get("/csv", auth.authenticate, async (req, res) => {
     );
 });
 
+/**
+ * Execute SQL queries from the client by POSTing them to this endpoint.
+ * Notes:
+ * - Only SELECT queries are allowed
+ * - The results are limited to 1000 rows
+ */
 router.post("/", auth.authenticate, bodyParser.urlencoded({ extended: true }), async (req, res) => {
 
     let source = await createRowStream(req.body.query);

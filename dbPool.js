@@ -1,9 +1,11 @@
-const mysql    = require("mysql2/promise");
+const mysql = require("mysql2/promise");
 
+// We connect to MySQL database that is hosted on Google Cloud and is publicly
+// accessible but in read-only modes
 module.exports = mysql.createPool({
-    host              : "34.73.199.182",
+    host              : "35.221.49.252",
     user              : "bulk-data-read-only-user",
-    password          : "}229$[2h7#gm%.RZoZ2dNscAS$]f",
+    password          : "nq9FkLs}btq]mP8ZW8}c4ke)",
     database          : "bulk-data-stu-3",
     waitForConnections: true,
     connectionLimit   : 10,
