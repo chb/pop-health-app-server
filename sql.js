@@ -39,12 +39,7 @@ router.get("/csv", auth.authenticate, async (req, res) => {
         "Content-disposition": "attachment;filename=report.csv"
     });
 
-    pipeline(
-        source,
-        csvWriter(),
-        res,
-        console.error
-    );
+    pipeline(source, csvWriter(), res);
 });
 
 /**
