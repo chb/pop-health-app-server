@@ -4,7 +4,7 @@ const { env } = process;
 
 module.exports = {
     host: env.HOST || "0.0.0.0",
-    port: env.PORT || "3003",
+    port: +(env.PORT || 3003),
     db: {
         host              : env.DB_HOST,
         user              : env.DB_USER,

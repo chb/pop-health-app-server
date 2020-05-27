@@ -1,10 +1,7 @@
-const moment   = require("moment");
-const DB       = require("./db");
-const lib      = require("../lib");
-const {
-    syncAllHypertensions,
-    syncAllImmunizationsForAdolescents
-} = require("./sync");
+const moment      = require("moment");
+const DB          = require("./db");
+const lib         = require("../lib");
+const { syncAll } = require("./sync");
 
 
 class MeasureResult
@@ -45,8 +42,7 @@ class MeasureResult
         // complete - it runs in the background!
         // ---------------------------------------------------------------------
         if (sync) {
-            syncAllHypertensions(startDate, endDate);
-            syncAllImmunizationsForAdolescents(startDate, endDate);
+            syncAll(startDate, endDate);
         }
 
         // ---------------------------------------------------------------------

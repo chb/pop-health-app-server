@@ -6,7 +6,7 @@ const pool     = require("../dbPool");
 // used in out PopHealth app. To simulate those, we run the queries as usual, 
 // but introduce some randomness by excluding some portion of the results. This
 // way we end up with somewhat different results for each dataset.
-const RANDOMNESS = 0.2;
+const RANDOMNESS = 0.33;
 
 // LOINC Codes used for various types of hypertension
 const hypertensionCodes = [
@@ -77,7 +77,7 @@ async function syncHypertension(year, orgId, dsId)
     // Group by patient and month to compute the averages
     sql += "GROUP BY patient, `month`";
 
-    console.log(sql);
+    // console.log(sql);
 
     const [rows] = await pool.query(sql);
 
@@ -104,7 +104,7 @@ async function syncHypertension(year, orgId, dsId)
         }
     });
 
-    console.log(months);
+    // console.log(months);
 
     const tasks = months.map((numerator, index) => DB.promise(
         "run",
@@ -163,7 +163,7 @@ async function syncImmunizationsForAdolescents(year, orgId, dsId)
 
     sql += " ORDER BY DATE(i.resource_json ->> '$.date')";
 
-    console.log(sql);
+    // console.log(sql);
 
     const [rows] = await pool.query(sql);
 
@@ -200,7 +200,7 @@ async function syncImmunizationsForAdolescents(year, orgId, dsId)
         total += cur;
         return total;
     });
-    console.log(DENOMINATOR, NUMERATORS);
+    // console.log(DENOMINATOR, NUMERATORS);
 
     const tasks = NUMERATORS.map((numerator, index) => DB.promise(
         "run",
@@ -220,42 +220,49 @@ async function syncImmunizationsForAdolescents(year, orgId, dsId)
     await Promise.all(tasks);
 }
 
-async function syncAllHypertensions(startDate, endDate)
+function *syncAllHypertensions(startDate, endDate)
 {
-    await syncHypertension(startDate.year(), "bch" , "bch_cerner");
-    await syncHypertension(endDate  .year(), "bch" , "bch_cerner");
-    await syncHypertension(startDate.year(), "po"  , "bch_cerner");
-    await syncHypertension(endDate  .year(), "po"  , "bch_cerner");
-    await syncHypertension(startDate.year(), "ppoc", "bch_cerner");
-    await syncHypertension(endDate  .year(), "ppoc", "bch_cerner");
-    await syncHypertension(startDate.year(), "bch" , "bch_epic"  );
-    await syncHypertension(endDate  .year(), "bch" , "bch_epic"  );
-    await syncHypertension(startDate.year(), "po"  , "bch_epic"  );
-    await syncHypertension(endDate  .year(), "po"  , "bch_epic"  );
-    await syncHypertension(startDate.year(), "ppoc", "bch_epic"  );
-    await syncHypertension(endDate  .year(), "ppoc", "bch_epic"  );
+    yield syncHypertension(startDate.year(), "bch" , "bch_cerner");
+    yield syncHypertension(endDate  .year(), "bch" , "bch_cerner");
+    yield syncHypertension(startDate.year(), "po"  , "bch_cerner");
+    yield syncHypertension(endDate  .year(), "po"  , "bch_cerner");
+    yield syncHypertension(startDate.year(), "ppoc", "bch_cerner");
+    yield syncHypertension(endDate  .year(), "ppoc", "bch_cerner");
+    yield syncHypertension(startDate.year(), "bch" , "bch_epic"  );
+    yield syncHypertension(endDate  .year(), "bch" , "bch_epic"  );
+    yield syncHypertension(startDate.year(), "po"  , "bch_epic"  );
+    yield syncHypertension(endDate  .year(), "po"  , "bch_epic"  );
+    yield syncHypertension(startDate.year(), "ppoc", "bch_epic"  );
+    yield syncHypertension(endDate  .year(), "ppoc", "bch_epic"  );
 }
 
-async function syncAllImmunizationsForAdolescents(startDate, endDate)
+function *syncAllImmunizationsForAdolescents(startDate, endDate)
 {
-    await syncImmunizationsForAdolescents(startDate.year(), "bch" , "bch_cerner");
-    await syncImmunizationsForAdolescents(endDate  .year(), "bch" , "bch_cerner");
-    await syncImmunizationsForAdolescents(startDate.year(), "po"  , "bch_cerner");
-    await syncImmunizationsForAdolescents(endDate  .year(), "po"  , "bch_cerner");
-    await syncImmunizationsForAdolescents(startDate.year(), "ppoc", "bch_cerner");
-    await syncImmunizationsForAdolescents(endDate  .year(), "ppoc", "bch_cerner");
-    await syncImmunizationsForAdolescents(startDate.year(), "bch" , "bch_epic"  );
-    await syncImmunizationsForAdolescents(endDate  .year(), "bch" , "bch_epic"  );
-    await syncImmunizationsForAdolescents(startDate.year(), "po"  , "bch_epic"  );
-    await syncImmunizationsForAdolescents(endDate  .year(), "po"  , "bch_epic"  );
-    await syncImmunizationsForAdolescents(startDate.year(), "ppoc", "bch_epic"  );
-    await syncImmunizationsForAdolescents(endDate  .year(), "ppoc", "bch_epic"  );
+    yield syncImmunizationsForAdolescents(startDate.year(), "bch" , "bch_cerner");
+    yield syncImmunizationsForAdolescents(endDate  .year(), "bch" , "bch_cerner");
+    yield syncImmunizationsForAdolescents(startDate.year(), "po"  , "bch_cerner");
+    yield syncImmunizationsForAdolescents(endDate  .year(), "po"  , "bch_cerner");
+    yield syncImmunizationsForAdolescents(startDate.year(), "ppoc", "bch_cerner");
+    yield syncImmunizationsForAdolescents(endDate  .year(), "ppoc", "bch_cerner");
+    yield syncImmunizationsForAdolescents(startDate.year(), "bch" , "bch_epic"  );
+    yield syncImmunizationsForAdolescents(endDate  .year(), "bch" , "bch_epic"  );
+    yield syncImmunizationsForAdolescents(startDate.year(), "po"  , "bch_epic"  );
+    yield syncImmunizationsForAdolescents(endDate  .year(), "po"  , "bch_epic"  );
+    yield syncImmunizationsForAdolescents(startDate.year(), "ppoc", "bch_epic"  );
+    yield syncImmunizationsForAdolescents(endDate  .year(), "ppoc", "bch_epic"  );
 }
 
 async function syncAll(startDate, endDate)
 {
-    await syncAllHypertensions(startDate, endDate);
-    await syncAllImmunizationsForAdolescents(startDate, endDate);
+    let i = 0;
+    for await (const _ of syncAllImmunizationsForAdolescents(startDate, endDate)) {
+        console.log(`Synchronize immunizations: ${Math.round(++i/12 * 100)}%`);
+    }
+    i = 0;
+    for await (const _ of syncAllHypertensions(startDate, endDate)) {
+        console.log(`Synchronize hypertensions: ${Math.round(++i/12 * 100)}%`);
+    }
+    console.log("Synchronization complete!");
 }
 
 module.exports = {
