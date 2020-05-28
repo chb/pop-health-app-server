@@ -24,7 +24,7 @@ function createRowStream(sql) {
  * - There is no size limit. The results will be streamed into a CSV file that
  *   the browser downloads.
  */
-router.get("/csv", auth.authenticate, async (req, res) => {
+router.get("/csv", async (req, res) => {
     let query = req.query.q || "";
     if (!query) {
         return res.status(400).json({ error: "A 'q' parameter is required" }).end();
