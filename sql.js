@@ -17,6 +17,7 @@ function createRowStream(sql) {
 }
 
 function authenticateSql(req, res, next) {
+    console.log(process.env)
     if (process.env.NO_SQL_AUTH) {
         return next();
     }
