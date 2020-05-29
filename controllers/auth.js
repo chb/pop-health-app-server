@@ -67,7 +67,7 @@ async function login({ username = "", password = "" }) {
 router.post("/login", bodyParser.urlencoded({ extended: true }), async (req, res) => {
     try {
         const user = await login(req.body);
-        res.cookie("sid", user.sid, { httpOnly: true });
+        res.cookie("sid", user.sid, { httpOnly: true, sameSite: "Lax" });
         res.json({
             username : user.username,
             lastLogin: user.lastLogin
