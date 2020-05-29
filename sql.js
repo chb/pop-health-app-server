@@ -16,13 +16,13 @@ function createRowStream(sql) {
     });
 }
 
-function authenticateSql(req, res, next) {
-    console.log(process.env)
-    if (process.env.NO_SQL_AUTH) {
-        return next();
-    }
-    auth.authenticate(req, res, next);
-}
+// function authenticateSql(req, res, next) {
+//     // console.log(process.env)
+//     // if (process.env.NO_SQL_AUTH) {
+//     //     return next();
+//     // }
+//     auth.authenticate(req, res, next);
+// }
 
 /**
  * Execute SQL queries from the client and download the results as CSV file.
@@ -32,7 +32,7 @@ function authenticateSql(req, res, next) {
  * - There is no size limit. The results will be streamed into a CSV file that
  *   the browser downloads.
  */
-router.get("/csv", authenticateSql, async (req, res) => {
+router.get("/csv", auth.authenticate, async (req, res) => {
     let query = req.query.q || "";
     if (!query) {
         return res.status(400).json({ error: "A 'q' parameter is required" }).end();
@@ -56,7 +56,7 @@ router.get("/csv", authenticateSql, async (req, res) => {
  * - Only SELECT queries are allowed
  * - The results are limited to 1000 rows
  */
-router.post("/", authenticateSql, bodyParser.urlencoded({ extended: true }), async (req, res) => {
+router.post("/", auth.authenticate, bodyParser.urlencoded({ extended: true }), async (req, res) => {
 
     let source = await createRowStream(req.body.query);
     let header;
